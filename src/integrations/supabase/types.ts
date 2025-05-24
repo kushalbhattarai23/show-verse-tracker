@@ -9,6 +9,85 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      episodes: {
+        Row: {
+          air_date: string | null
+          created_at: string
+          episode_number: number
+          id: string
+          season_number: number
+          show_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          air_date?: string | null
+          created_at?: string
+          episode_number: number
+          id?: string
+          season_number?: number
+          show_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          air_date?: string | null
+          created_at?: string
+          episode_number?: number
+          id?: string
+          season_number?: number
+          show_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "episodes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shows: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          poster_url: string | null
+          title: string
+          universe_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          poster_url?: string | null
+          title: string
+          universe_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          poster_url?: string | null
+          title?: string
+          universe_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shows_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           created_at: string
@@ -53,6 +132,71 @@ export type Database = {
           },
         ]
       }
+      universes: {
+        Row: {
+          created_at: string
+          creator_id: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_episode_status: {
+        Row: {
+          created_at: string
+          episode_id: string
+          id: string
+          status: Database["public"]["Enums"]["episode_status"]
+          updated_at: string
+          user_id: string
+          watched_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          episode_id: string
+          id?: string
+          status?: Database["public"]["Enums"]["episode_status"]
+          updated_at?: string
+          user_id: string
+          watched_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          episode_id?: string
+          id?: string
+          status?: Database["public"]["Enums"]["episode_status"]
+          updated_at?: string
+          user_id?: string
+          watched_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_episode_status_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "episodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallets: {
         Row: {
           balance: number
@@ -88,7 +232,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      episode_status: "watched" | "not_watched"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -203,6 +347,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      episode_status: ["watched", "not_watched"],
+    },
   },
 } as const
