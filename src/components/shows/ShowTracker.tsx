@@ -69,11 +69,28 @@ export const ShowTracker: React.FC<ShowTrackerProps> = ({ show, onStatusChange }
     if (!user) return;
 
     try {
+      // Get all episode IDs for this show first
+      const { data: showEpisodes, error: episodesError } = await supabase
+        .from('episodes')
+        .select('id')
+        .eq('show_id', show.id);
+
+      if (episodesError) throw episodesError;
+
+      const episodeIds = showEpisodes?.map(ep => ep.id) || [];
+
+      if (episodeIds.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      // Then get watch status only for episodes belonging to this show
       const { data, error } = await supabase
         .from('user_episode_status')
         .select('episode_id')
         .eq('user_id', user.id)
-        .eq('status', 'watched');
+        .eq('status', 'watched')
+        .in('episode_id', episodeIds);
 
       if (error) throw error;
       setWatchedEpisodes((data || []).map(item => item.episode_id));
