@@ -6,6 +6,7 @@ import { ShowCard } from '@/components/shows/ShowCard';
 import { EpisodeList } from '@/components/episodes/EpisodeList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Search, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -24,9 +25,20 @@ interface Show {
   created_at: string;
 }
 
+interface Episode {
+  id: string;
+  title: string;
+  episode_number: number;
+  season_number: number;
+  air_date: string | null;
+  show_id: string;
+  show_title: string;
+}
+
 export const UniversePage: React.FC = () => {
   const [universes, setUniverses] = useState<Universe[]>([]);
   const [shows, setShows] = useState<Show[]>([]);
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [availableShows, setAvailableShows] = useState<Show[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUniverse, setSelectedUniverse] = useState<Universe | null>(null);
@@ -78,6 +90,37 @@ export const UniversePage: React.FC = () => {
     }
   };
 
+  const fetchEpisodes = async (universeId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('episodes')
+        .select(`
+          *,
+          shows!inner(
+            title,
+            universe_id
+          )
+        `)
+        .eq('shows.universe_id', universeId)
+        .order('air_date', { ascending: true });
+
+      if (error) throw error;
+      
+      const episodesWithShowTitle = (data || []).map(episode => ({
+        ...episode,
+        show_title: episode.shows.title
+      }));
+      
+      setEpisodes(episodesWithShowTitle);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load episodes",
+        variant: "destructive",
+      });
+    }
+  };
+
   const fetchAvailableShows = async (universeId: string) => {
     try {
       const { data, error } = await supabase
@@ -103,6 +146,7 @@ export const UniversePage: React.FC = () => {
       setSelectedUniverse(universe);
       await Promise.all([
         fetchShows(universeId),
+        fetchEpisodes(universeId),
         fetchAvailableShows(universeId)
       ]);
     }
@@ -135,6 +179,7 @@ export const UniversePage: React.FC = () => {
       // Refresh the shows list
       await Promise.all([
         fetchShows(selectedUniverse.id),
+        fetchEpisodes(selectedUniverse.id),
         fetchAvailableShows(selectedUniverse.id)
       ]);
       setSearchTerm('');
@@ -155,6 +200,7 @@ export const UniversePage: React.FC = () => {
     } else if (selectedUniverse) {
       setSelectedUniverse(null);
       setShows([]);
+      setEpisodes([]);
       setAvailableShows([]);
       setSearchTerm('');
     }
@@ -196,6 +242,46 @@ export const UniversePage: React.FC = () => {
         {selectedUniverse.description && (
           <p className="text-gray-600">{selectedUniverse.description}</p>
         )}
+
+        {/* Episodes Table */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">All Episodes</h2>
+          {episodes.length > 0 ? (
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Show</TableHead>
+                    <TableHead>Season</TableHead>
+                    <TableHead>Episode</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Air Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {episodes.map((episode) => (
+                    <TableRow key={episode.id}>
+                      <TableCell className="font-medium">{episode.show_title}</TableCell>
+                      <TableCell>S{episode.season_number}</TableCell>
+                      <TableCell>E{episode.episode_number}</TableCell>
+                      <TableCell>{episode.title}</TableCell>
+                      <TableCell>
+                        {episode.air_date 
+                          ? new Date(episode.air_date).toLocaleDateString()
+                          : 'TBA'
+                        }
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No episodes found in this universe.
+            </div>
+          )}
+        </div>
 
         {/* Shows in Universe */}
         <div>
