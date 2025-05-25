@@ -5,7 +5,8 @@ import { UniverseCard } from '@/components/universes/UniverseCard';
 import { ShowCard } from '@/components/shows/ShowCard';
 import { EpisodeList } from '@/components/episodes/EpisodeList';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, Search, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Universe {
@@ -26,9 +27,12 @@ interface Show {
 export const UniversePage: React.FC = () => {
   const [universes, setUniverses] = useState<Universe[]>([]);
   const [shows, setShows] = useState<Show[]>([]);
+  const [availableShows, setAvailableShows] = useState<Show[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedUniverse, setSelectedUniverse] = useState<Universe | null>(null);
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [loading, setLoading] = useState(true);
+  const [addingShow, setAddingShow] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -74,11 +78,33 @@ export const UniversePage: React.FC = () => {
     }
   };
 
+  const fetchAvailableShows = async (universeId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('shows')
+        .select('*')
+        .neq('universe_id', universeId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAvailableShows(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load available shows",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleUniverseSelect = async (universeId: string) => {
     const universe = universes.find(u => u.id === universeId);
     if (universe) {
       setSelectedUniverse(universe);
-      await fetchShows(universeId);
+      await Promise.all([
+        fetchShows(universeId),
+        fetchAvailableShows(universeId)
+      ]);
     }
   };
 
@@ -89,14 +115,54 @@ export const UniversePage: React.FC = () => {
     }
   };
 
+  const handleAddShow = async (showId: string) => {
+    if (!selectedUniverse) return;
+
+    setAddingShow(showId);
+    try {
+      const { error } = await supabase
+        .from('shows')
+        .update({ universe_id: selectedUniverse.id })
+        .eq('id', showId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Show added to universe successfully!",
+      });
+
+      // Refresh the shows list
+      await Promise.all([
+        fetchShows(selectedUniverse.id),
+        fetchAvailableShows(selectedUniverse.id)
+      ]);
+      setSearchTerm('');
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to add show to universe",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingShow(null);
+    }
+  };
+
   const handleBack = () => {
     if (selectedShow) {
       setSelectedShow(null);
     } else if (selectedUniverse) {
       setSelectedUniverse(null);
       setShows([]);
+      setAvailableShows([]);
+      setSearchTerm('');
     }
   };
+
+  const filteredAvailableShows = availableShows.filter(show =>
+    show.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
@@ -131,17 +197,73 @@ export const UniversePage: React.FC = () => {
           <p className="text-gray-600">{selectedUniverse.description}</p>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {shows.map((show) => (
-            <ShowCard key={show.id} show={show} onSelect={handleShowSelect} />
-          ))}
+        {/* Shows in Universe */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">Shows in Universe</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {shows.map((show) => (
+              <ShowCard key={show.id} show={show} onSelect={handleShowSelect} />
+            ))}
+          </div>
+
+          {shows.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No shows found in this universe.
+            </div>
+          )}
         </div>
 
-        {shows.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No shows found in this universe.
+        {/* Add Shows Section */}
+        <div className="border-t pt-6">
+          <h2 className="text-2xl font-semibold mb-4">Add Shows to Universe</h2>
+          
+          {/* Search Input */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search shows to add..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        )}
+
+          {/* Available Shows */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredAvailableShows.map((show) => (
+              <div key={show.id} className="relative">
+                <ShowCard show={show} onSelect={() => {}} />
+                <Button
+                  onClick={() => handleAddShow(show.id)}
+                  disabled={addingShow === show.id}
+                  className="absolute top-2 right-2"
+                  size="sm"
+                >
+                  {addingShow === show.id ? (
+                    'Adding...'
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </>
+                  )}
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {searchTerm && filteredAvailableShows.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No shows found matching "{searchTerm}".
+            </div>
+          )}
+
+          {!searchTerm && availableShows.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              All shows are already in universes.
+            </div>
+          )}
+        </div>
       </div>
     );
   }
