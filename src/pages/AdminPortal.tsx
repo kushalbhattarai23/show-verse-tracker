@@ -26,32 +26,91 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim());
+    return result;
+  };
+
   const parseCsvData = (csvText: string) => {
     const lines = csvText.trim().split('\n');
-    const header = lines[0].split('\t');
     
-    if (header.length !== 4 || header[0] !== 'Show' || header[1] !== 'Episode' || header[2] !== 'Title' || header[3] !== 'Air Date') {
+    // Parse the header to determine the delimiter and format
+    const firstLine = lines[0];
+    let delimiter = ',';
+    let header: string[];
+    
+    // Try to detect if it's tab-separated or comma-separated
+    if (firstLine.includes('\t') && !firstLine.includes(',')) {
+      delimiter = '\t';
+      header = firstLine.split('\t');
+    } else {
+      header = parseCSVLine(firstLine);
+    }
+    
+    // Validate header format
+    const expectedHeaders = ['Show', 'Episode', 'Title', 'Air Date'];
+    const normalizedHeader = header.map(h => h.trim());
+    
+    if (normalizedHeader.length !== 4 || 
+        !expectedHeaders.every((expected, index) => 
+          normalizedHeader[index].toLowerCase() === expected.toLowerCase())) {
       throw new Error('Invalid CSV format. Expected columns: Show, Episode, Title, Air Date');
     }
 
     const data = [];
     for (let i = 1; i < lines.length; i++) {
-      const columns = lines[i].split('\t');
+      const line = lines[i].trim();
+      if (!line) continue; // Skip empty lines
+      
+      let columns: string[];
+      if (delimiter === '\t') {
+        columns = line.split('\t');
+      } else {
+        columns = parseCSVLine(line);
+      }
+      
       if (columns.length === 4) {
-        const [showTitle, episodeInfo, episodeTitle, airDate] = columns;
+        const [showTitle, episodeInfo, episodeTitle, airDate] = columns.map(col => col.trim());
         
-        // Parse episode info (assuming format like "S1E1" or "1x1")
-        const episodeMatch = episodeInfo.match(/S?(\d+)[xE](\d+)/i);
+        // Parse episode info (supporting formats like "S01E01", "S1E1", "1x1")
+        const episodeMatch = episodeInfo.match(/S?0*(\d+)[xE]0*(\d+)/i);
         if (episodeMatch) {
           const seasonNumber = parseInt(episodeMatch[1]);
           const episodeNumber = parseInt(episodeMatch[2]);
           
+          // Parse air date (handle quoted dates)
+          let cleanAirDate = airDate.replace(/^["']|["']$/g, ''); // Remove surrounding quotes
+          if (cleanAirDate && cleanAirDate !== '') {
+            // Try to parse different date formats
+            const date = new Date(cleanAirDate);
+            if (!isNaN(date.getTime())) {
+              cleanAirDate = date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+            }
+          }
+          
           data.push({
-            showTitle: showTitle.trim(),
+            showTitle: showTitle.replace(/^["']|["']$/g, ''), // Remove quotes from show title
             seasonNumber,
             episodeNumber,
-            episodeTitle: episodeTitle.trim(),
-            airDate: airDate.trim() || null
+            episodeTitle: episodeTitle.replace(/^["']|["']$/g, ''), // Remove quotes from episode title
+            airDate: cleanAirDate || null
           });
         }
       }
@@ -182,9 +241,9 @@ export const AdminPortal: React.FC = () => {
             <Label htmlFor="csv-data">Or Paste CSV Data</Label>
             <Textarea
               id="csv-data"
-              placeholder="Show	Episode	Title	Air Date
-Breaking Bad	S1E1	Pilot	2008-01-20
-Breaking Bad	S1E2	Cat's in the Bag...	2008-01-27"
+              placeholder='Show,Episode,Title,Air Date
+Agent Carter,S01E01,Now is Not the End,"January 6, 2015"
+Agent Carter,S01E02,Bridge and Tunnel,"January 13, 2015"'
               value={csvData}
               onChange={(e) => setCsvData(e.target.value)}
               rows={10}
@@ -195,10 +254,11 @@ Breaking Bad	S1E2	Cat's in the Bag...	2008-01-27"
           <div className="text-sm text-gray-500">
             <p><strong>Format requirements:</strong></p>
             <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>Tab-separated values (TSV)</li>
+              <li>Comma-separated values (CSV) or Tab-separated values (TSV)</li>
               <li>First row must be headers: Show, Episode, Title, Air Date</li>
-              <li>Episode format: S1E1 or 1x1</li>
-              <li>Air Date format: YYYY-MM-DD (optional)</li>
+              <li>Episode format: S01E01, S1E1, or 1x1</li>
+              <li>Air Date: Any standard date format (e.g., "January 6, 2015")</li>
+              <li>Fields with commas should be quoted</li>
             </ul>
           </div>
 
