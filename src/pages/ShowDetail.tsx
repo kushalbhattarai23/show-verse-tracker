@@ -13,10 +13,9 @@ interface Show {
   description: string | null;
   poster_url: string | null;
   created_at: string;
-  universe_id: string;
   universes: {
     name: string;
-  };
+  }[];
 }
 
 export const ShowDetail: React.FC = () => {
@@ -38,13 +37,24 @@ export const ShowDetail: React.FC = () => {
         .from('shows')
         .select(`
           *,
-          universes!inner(name)
+          show_universes!inner(
+            universes!inner(name)
+          )
         `)
         .eq('id', showId)
         .single();
 
       if (error) throw error;
-      setShow(data);
+      
+      // Transform the data to match our interface
+      const transformedShow = {
+        ...data,
+        universes: data.show_universes.map((su: any) => ({
+          name: su.universes.name
+        }))
+      };
+      
+      setShow(transformedShow);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -81,7 +91,9 @@ export const ShowDetail: React.FC = () => {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">{show.title}</h1>
-          <p className="text-gray-600">Universe: {show.universes.name}</p>
+          <p className="text-gray-600">
+            Universe{show.universes.length > 1 ? 's' : ''}: {show.universes.map(u => u.name).join(', ')}
+          </p>
         </div>
       </div>
 
