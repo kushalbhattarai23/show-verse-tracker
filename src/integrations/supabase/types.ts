@@ -91,6 +91,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_public: boolean
           poster_url: string | null
           title: string
           updated_at: string
@@ -99,6 +100,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_public?: boolean
           poster_url?: string | null
           title: string
           updated_at?: string
@@ -107,6 +109,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_public?: boolean
           poster_url?: string | null
           title?: string
           updated_at?: string
@@ -163,6 +166,7 @@ export type Database = {
           creator_id: string | null
           description: string | null
           id: string
+          is_public: boolean
           name: string
           updated_at: string
         }
@@ -171,6 +175,7 @@ export type Database = {
           creator_id?: string | null
           description?: string | null
           id?: string
+          is_public?: boolean
           name: string
           updated_at?: string
         }
@@ -179,6 +184,7 @@ export type Database = {
           creator_id?: string | null
           description?: string | null
           id?: string
+          is_public?: boolean
           name?: string
           updated_at?: string
         }

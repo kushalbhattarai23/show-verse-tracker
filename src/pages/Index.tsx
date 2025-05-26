@@ -1,9 +1,20 @@
 
-import React from 'react';
-import { UniversePage } from './UniversePage';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-const Index = () => {
-  return <UniversePage />;
+const Index: React.FC = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Redirect to public universes as the main page
+    navigate('/universes/public');
+  }, [navigate]);
+
+  return (
+    <div className="text-center py-8">
+      <p>Redirecting...</p>
+    </div>
+  );
 };
 
 export default Index;
