@@ -50,6 +50,42 @@ export type Database = {
           },
         ]
       }
+      show_universes: {
+        Row: {
+          created_at: string
+          id: string
+          show_id: string
+          universe_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          show_id: string
+          universe_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          show_id?: string
+          universe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_universes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_universes_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shows: {
         Row: {
           created_at: string
@@ -57,7 +93,6 @@ export type Database = {
           id: string
           poster_url: string | null
           title: string
-          universe_id: string
           updated_at: string
         }
         Insert: {
@@ -66,7 +101,6 @@ export type Database = {
           id?: string
           poster_url?: string | null
           title: string
-          universe_id: string
           updated_at?: string
         }
         Update: {
@@ -75,18 +109,9 @@ export type Database = {
           id?: string
           poster_url?: string | null
           title?: string
-          universe_id?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "shows_universe_id_fkey"
-            columns: ["universe_id"]
-            isOneToOne: false
-            referencedRelation: "universes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       transactions: {
         Row: {

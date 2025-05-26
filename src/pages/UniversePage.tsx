@@ -74,13 +74,22 @@ export const UniversePage: React.FC = () => {
   const fetchShows = async (universeId: string) => {
     try {
       const { data, error } = await supabase
-        .from('shows')
-        .select('*')
-        .eq('universe_id', universeId)
-        .order('created_at', { ascending: false });
+        .from('show_universes')
+        .select(`
+          shows (
+            id,
+            title,
+            description,
+            poster_url,
+            created_at
+          )
+        `)
+        .eq('universe_id', universeId);
 
       if (error) throw error;
-      setShows(data || []);
+      
+      const showsData = (data || []).map(item => item.shows).filter(Boolean);
+      setShows(showsData);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -98,10 +107,10 @@ export const UniversePage: React.FC = () => {
           *,
           shows!inner(
             title,
-            universe_id
+            show_universes!inner(universe_id)
           )
         `)
-        .eq('shows.universe_id', universeId)
+        .eq('shows.show_universes.universe_id', universeId)
         .order('air_date', { ascending: true });
 
       if (error) throw error;
@@ -123,11 +132,26 @@ export const UniversePage: React.FC = () => {
 
   const fetchAvailableShows = async (universeId: string) => {
     try {
-      const { data, error } = await supabase
+      // Get shows that are NOT in this universe
+      const { data: showsInUniverse, error: universeShowsError } = await supabase
+        .from('show_universes')
+        .select('show_id')
+        .eq('universe_id', universeId);
+
+      if (universeShowsError) throw universeShowsError;
+
+      const showIdsInUniverse = (showsInUniverse || []).map(item => item.show_id);
+
+      let query = supabase
         .from('shows')
         .select('*')
-        .neq('universe_id', universeId)
         .order('created_at', { ascending: false });
+
+      if (showIdsInUniverse.length > 0) {
+        query = query.not('id', 'in', `(${showIdsInUniverse.join(',')})`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setAvailableShows(data || []);
@@ -165,9 +189,11 @@ export const UniversePage: React.FC = () => {
     setAddingShow(showId);
     try {
       const { error } = await supabase
-        .from('shows')
-        .update({ universe_id: selectedUniverse.id })
-        .eq('id', showId);
+        .from('show_universes')
+        .insert({
+          show_id: showId,
+          universe_id: selectedUniverse.id
+        });
 
       if (error) throw error;
 
@@ -346,7 +372,7 @@ export const UniversePage: React.FC = () => {
 
           {!searchTerm && availableShows.length === 0 && (
             <div className="text-center py-8 text-gray-500">
-              All shows are already in universes.
+              All shows are already in this universe.
             </div>
           )}
         </div>
