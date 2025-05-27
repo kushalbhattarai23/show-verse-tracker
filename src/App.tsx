@@ -11,6 +11,8 @@ import { MyShows } from './pages/MyShows';
 import { PublicUniverses } from './pages/PublicUniverses';
 import { MyUniverses } from './pages/MyUniverses';
 import { UniversePage } from './pages/UniversePage';
+import { SignIn } from './pages/SignIn';
+import { SignUp } from './pages/SignUp';
 
 function App() {
   return (
@@ -27,6 +29,8 @@ function App() {
               <Route path="/universes/public" element={<PublicUniverses />} />
               <Route path="/universes/my" element={<MyUniverses />} />
               <Route path="/universe/:id" element={<UniversePage />} />
+              <Route path="/sign-in" element={<SignIn />} />
+              <Route path="/sign-up" element={<SignUp />} />
             </Routes>
           </main>
         </div>
