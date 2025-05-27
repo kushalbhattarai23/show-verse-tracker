@@ -13,6 +13,7 @@ import { MyUniverses } from './pages/MyUniverses';
 import { UniversePage } from './pages/UniversePage';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
+import { ShowDetail } from './pages/ShowDetail';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
               <Route path="/universes/public" element={<PublicUniverses />} />
               <Route path="/universes/my" element={<MyUniverses />} />
               <Route path="/universe/:id" element={<UniversePage />} />
+              <Route path="/show/:showId" element={<ShowDetail />} />
               <Route path="/sign-in" element={<SignIn />} />
               <Route path="/sign-up" element={<SignUp />} />
             </Routes>
