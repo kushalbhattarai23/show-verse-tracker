@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Search, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 interface Universe {
   id: string;
@@ -33,6 +34,7 @@ interface Episode {
   air_date: string | null;
   show_id: string;
   show_title: string;
+  is_watched?: boolean;
 }
 
 export const UniversePage: React.FC = () => {
@@ -46,6 +48,7 @@ export const UniversePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [addingShow, setAddingShow] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchUniverses();
@@ -115,10 +118,32 @@ export const UniversePage: React.FC = () => {
 
       if (error) throw error;
       
-      const episodesWithShowTitle = (data || []).map(episode => ({
+      let episodesWithShowTitle = (data || []).map(episode => ({
         ...episode,
         show_title: episode.shows.title
       }));
+
+      // If user is logged in, fetch watch status
+      if (user) {
+        const episodeIds = episodesWithShowTitle.map(ep => ep.id);
+        
+        if (episodeIds.length > 0) {
+          const { data: watchStatus, error: watchError } = await supabase
+            .from('user_episode_status')
+            .select('episode_id')
+            .eq('user_id', user.id)
+            .eq('status', 'watched')
+            .in('episode_id', episodeIds);
+
+          if (!watchError) {
+            const watchedEpisodeIds = new Set(watchStatus?.map(ws => ws.episode_id) || []);
+            episodesWithShowTitle = episodesWithShowTitle.map(episode => ({
+              ...episode,
+              is_watched: watchedEpisodeIds.has(episode.id)
+            }));
+          }
+        }
+      }
       
       setEpisodes(episodesWithShowTitle);
     } catch (error: any) {
@@ -282,6 +307,7 @@ export const UniversePage: React.FC = () => {
                     <TableHead>Episode</TableHead>
                     <TableHead>Title</TableHead>
                     <TableHead>Air Date</TableHead>
+                    <TableHead>Active</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -296,6 +322,15 @@ export const UniversePage: React.FC = () => {
                           ? new Date(episode.air_date).toLocaleDateString()
                           : 'TBA'
                         }
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          episode.is_watched 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {episode.is_watched ? 'Watched' : 'Unwatched'}
+                        </span>
                       </TableCell>
                     </TableRow>
                   ))}
