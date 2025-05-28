@@ -228,6 +228,35 @@ export type Database = {
           },
         ]
       }
+      user_show_tracking: {
+        Row: {
+          created_at: string
+          id: string
+          show_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          show_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          show_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_show_tracking_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallets: {
         Row: {
           balance: number

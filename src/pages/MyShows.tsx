@@ -17,13 +17,6 @@ interface Show {
   created_at: string;
 }
 
-interface UserShowTracking {
-  id: string;
-  user_id: string;
-  show_id: string;
-  created_at: string;
-}
-
 export const MyShows: React.FC = () => {
   const { user } = useAuth();
   const [myShows, setMyShows] = useState<Show[]>([]);
