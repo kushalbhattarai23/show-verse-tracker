@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { ShowCard } from '@/components/shows/ShowCard';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,16 +17,27 @@ interface Show {
   created_at: string;
 }
 
+interface UserShowTracking {
+  id: string;
+  user_id: string;
+  show_id: string;
+  created_at: string;
+}
+
 export const MyShows: React.FC = () => {
   const { user } = useAuth();
-  const [shows, setShows] = useState<Show[]>([]);
+  const [myShows, setMyShows] = useState<Show[]>([]);
+  const [availableShows, setAvailableShows] = useState<Show[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
       fetchMyShows();
+      fetchAvailableShows();
     }
   }, [user]);
 
@@ -33,18 +45,64 @@ export const MyShows: React.FC = () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('shows')
-        .select('*')
-        .eq('is_public', false)
-        .order('created_at', { ascending: false });
+      // Get shows that user is tracking
+      const { data: trackingData, error: trackingError } = await supabase
+        .from('user_show_tracking')
+        .select(`
+          show_id,
+          shows (
+            id,
+            title,
+            description,
+            poster_url,
+            created_at
+          )
+        `)
+        .eq('user_id', user.id);
 
-      if (error) throw error;
-      setShows(data || []);
+      if (trackingError) throw trackingError;
+      
+      const trackedShows = (trackingData || []).map(item => item.shows).filter(Boolean);
+      setMyShows(trackedShows);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to load your shows",
+        description: "Failed to load your tracked shows",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchAvailableShows = async () => {
+    if (!user) return;
+    
+    try {
+      // Get all public shows
+      const { data: allShows, error: showsError } = await supabase
+        .from('shows')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false });
+
+      if (showsError) throw showsError;
+
+      // Get shows user is already tracking
+      const { data: trackingData, error: trackingError } = await supabase
+        .from('user_show_tracking')
+        .select('show_id')
+        .eq('user_id', user.id);
+
+      if (trackingError) throw trackingError;
+
+      const trackedShowIds = new Set((trackingData || []).map(item => item.show_id));
+      
+      // Filter out shows user is already tracking
+      const available = (allShows || []).filter(show => !trackedShowIds.has(show.id));
+      setAvailableShows(available);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load available shows",
         variant: "destructive",
       });
     } finally {
@@ -52,14 +110,51 @@ export const MyShows: React.FC = () => {
     }
   };
 
+  const handleAddShow = async (showId: string) => {
+    if (!user) return;
+
+    setAdding(showId);
+    try {
+      const { error } = await supabase
+        .from('user_show_tracking')
+        .insert({
+          user_id: user.id,
+          show_id: showId
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Show added to your tracking list!",
+      });
+
+      // Refresh both lists
+      await Promise.all([fetchMyShows(), fetchAvailableShows()]);
+      setSearchTerm('');
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to add show to tracking list",
+        variant: "destructive",
+      });
+    } finally {
+      setAdding(null);
+    }
+  };
+
   const handleShowSelect = (showId: string) => {
     navigate(`/show/${showId}`);
   };
 
+  const filteredAvailableShows = availableShows.filter(show =>
+    show.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (!user) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-600">Please sign in to view your private shows.</p>
+        <p className="text-gray-600">Please sign in to view your tracked shows.</p>
       </div>
     );
   }
@@ -69,32 +164,88 @@ export const MyShows: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">My Shows</h1>
-          <p className="text-gray-600">Manage your private shows</p>
-        </div>
-        <Button onClick={() => navigate('/admin')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Show
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {shows.map((show) => (
-          <ShowCard key={show.id} show={show} onSelect={handleShowSelect} />
-        ))}
-      </div>
-
-      {shows.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          <p>You haven't created any private shows yet.</p>
-          <Button onClick={() => navigate('/admin')} className="mt-4">
-            Create Your First Show
+    <div className="space-y-8">
+      {/* My Tracked Shows Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">My Tracked Shows</h1>
+            <p className="text-gray-600">Shows you're currently tracking</p>
+          </div>
+          <Button onClick={() => navigate('/admin')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create New Show
           </Button>
         </div>
-      )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {myShows.map((show) => (
+            <ShowCard key={show.id} show={show} onSelect={handleShowSelect} />
+          ))}
+        </div>
+
+        {myShows.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <p>You're not tracking any shows yet.</p>
+            <p className="text-sm mt-2">Add shows from the section below to start tracking.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Add Shows Section */}
+      <div className="border-t pt-8 space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold">Add Shows to Track</h2>
+          <p className="text-gray-600">Browse and add existing shows to your tracking list</p>
+        </div>
+        
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search shows to add..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        {/* Available Shows */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAvailableShows.map((show) => (
+            <div key={show.id} className="relative">
+              <ShowCard show={show} onSelect={() => {}} />
+              <Button
+                onClick={() => handleAddShow(show.id)}
+                disabled={adding === show.id}
+                className="absolute top-2 right-2"
+                size="sm"
+              >
+                {adding === show.id ? (
+                  'Adding...'
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Track
+                  </>
+                )}
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        {searchTerm && filteredAvailableShows.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No shows found matching "{searchTerm}".
+          </div>
+        )}
+
+        {!searchTerm && availableShows.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            You're already tracking all available shows!
+          </div>
+        )}
+      </div>
     </div>
   );
 };
