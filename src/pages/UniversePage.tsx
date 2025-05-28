@@ -6,7 +6,7 @@ import { EpisodeList } from '@/components/episodes/EpisodeList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Search, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Trash2, Eye, EyeOff, CheckCircle, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
 
@@ -50,6 +50,7 @@ export const UniversePage: React.FC = () => {
   const [addingShow, setAddingShow] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -339,6 +340,57 @@ export const UniversePage: React.FC = () => {
     }
   };
 
+  const toggleWatchStatus = async (episodeId: string, currentlyWatched: boolean) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be signed in to track episodes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUpdating(episodeId);
+    try {
+      if (currentlyWatched) {
+        const { error } = await supabase
+          .from('user_episode_status')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('episode_id', episodeId);
+
+        if (error) throw error;
+        
+        setEpisodes(prev => prev.map(ep => 
+          ep.id === episodeId ? { ...ep, is_watched: false } : ep
+        ));
+      } else {
+        const { error } = await supabase
+          .from('user_episode_status')
+          .upsert({
+            user_id: user.id,
+            episode_id: episodeId,
+            status: 'watched' as const,
+            watched_at: new Date().toISOString()
+          });
+
+        if (error) throw error;
+        
+        setEpisodes(prev => prev.map(ep => 
+          ep.id === episodeId ? { ...ep, is_watched: true } : ep
+        ));
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update watch status",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   const handleBack = () => {
     if (selectedShow) {
       setSelectedShow(null);
@@ -381,7 +433,16 @@ export const UniversePage: React.FC = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Universes
           </Button>
-          <h1 className="text-3xl font-bold">{selectedUniverse.name}</h1>
+          <div className="flex items-center space-x-4">
+            <Button
+              onClick={() => window.location.href = `/universe/${selectedUniverse.id}/dashboard`}
+              variant="outline"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Universe Dashboard
+            </Button>
+            <h1 className="text-3xl font-bold">{selectedUniverse.name}</h1>
+          </div>
         </div>
         
         {selectedUniverse.description && (
@@ -401,33 +462,58 @@ export const UniversePage: React.FC = () => {
                     <TableHead>Episode</TableHead>
                     <TableHead>Title</TableHead>
                     <TableHead>Air Date</TableHead>
-                    <TableHead>Active</TableHead>
+                    <TableHead>Status</TableHead>
+                    {user && <TableHead>Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {episodes.map((episode) => (
-                    <TableRow key={episode.id}>
-                      <TableCell className="font-medium">{episode.show_title}</TableCell>
-                      <TableCell>S{episode.season_number}</TableCell>
-                      <TableCell>E{episode.episode_number}</TableCell>
-                      <TableCell>{episode.title}</TableCell>
-                      <TableCell>
-                        {episode.air_date 
-                          ? new Date(episode.air_date).toLocaleDateString()
-                          : 'TBA'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          episode.is_watched 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {episode.is_watched ? 'Watched' : 'Unwatched'}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {episodes.map((episode) => {
+                    const isWatched = episode.is_watched;
+                    return (
+                      <TableRow key={episode.id}>
+                        <TableCell className="font-medium">{episode.show_title}</TableCell>
+                        <TableCell>S{episode.season_number}</TableCell>
+                        <TableCell>E{episode.episode_number}</TableCell>
+                        <TableCell>{episode.title}</TableCell>
+                        <TableCell>
+                          {episode.air_date 
+                            ? new Date(episode.air_date).toLocaleDateString()
+                            : 'TBA'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            {isWatched ? (
+                              <>
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span className="text-green-600">Watched</span>
+                              </>
+                            ) : (
+                              <span className="text-gray-500">Unwatched</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        {user && (
+                          <TableCell>
+                            <Button
+                              variant={isWatched ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => toggleWatchStatus(episode.id, isWatched)}
+                              disabled={updating === episode.id}
+                            >
+                              {updating === episode.id ? (
+                                'Updating...'
+                              ) : isWatched ? (
+                                'Mark Unwatched'
+                              ) : (
+                                'Mark Watched'
+                              )}
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
