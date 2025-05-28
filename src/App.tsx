@@ -14,6 +14,7 @@ import { UniversePage } from './pages/UniversePage';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { ShowDetail } from './pages/ShowDetail';
+import { Dashboard } from './pages/Dashboard';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <main className="container mx-auto px-4 py-8">
             <Routes>
               <Route path="/" element={<UniversePage />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={<AdminPortal />} />
               <Route path="/shows/public" element={<PublicShows />} />
               <Route path="/shows/my" element={<MyShows />} />

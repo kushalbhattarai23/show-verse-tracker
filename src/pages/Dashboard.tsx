@@ -5,7 +5,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Tv, Play, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { Tv, Play, CheckCircle, Clock, TrendingUp, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface DashboardStats {
@@ -15,6 +15,7 @@ interface DashboardStats {
   watchingShows: number;
   notStartedShows: number;
   completedShows: number;
+  totalUniverses: number;
 }
 
 interface ShowProgress {
@@ -40,23 +41,72 @@ export const Dashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Get all episodes with watch status
+      // Get tracked shows
+      const { data: trackedShows, error: trackedError } = await supabase
+        .from('user_show_tracking')
+        .select(`
+          show_id,
+          shows (
+            id,
+            title
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (trackedError) throw trackedError;
+
+      const trackedShowIds = (trackedShows || []).map(item => item.show_id);
+
+      if (trackedShowIds.length === 0) {
+        setStats({
+          totalShows: 0,
+          totalEpisodes: 0,
+          watchedEpisodes: 0,
+          watchingShows: 0,
+          notStartedShows: 0,
+          completedShows: 0,
+          totalUniverses: 0
+        });
+        setShowProgress([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get episodes for tracked shows
       const { data: episodeData, error: episodeError } = await supabase
         .from('episodes')
         .select(`
           id,
           show_id,
-          shows!inner(id, title),
-          user_episode_status!left(status)
-        `);
+          title,
+          shows!inner(id, title)
+        `)
+        .in('show_id', trackedShowIds);
 
       if (episodeError) throw episodeError;
 
+      // Get watched episodes
+      const { data: watchedData, error: watchedError } = await supabase
+        .from('user_episode_status')
+        .select('episode_id')
+        .eq('user_id', user.id)
+        .eq('status', 'watched');
+
+      if (watchedError) throw watchedError;
+
+      const watchedEpisodeIds = new Set((watchedData || []).map(item => item.episode_id));
+
+      // Get universes count (you can track universes you're interested in)
+      const { data: universesData, error: universesError } = await supabase
+        .from('universes')
+        .select('id')
+        .eq('is_public', true);
+
+      if (universesError) throw universesError;
+
       // Calculate stats
       const totalEpisodes = episodeData?.length || 0;
-      const watchedEpisodes = episodeData?.filter(ep => 
-        ep.user_episode_status?.some(status => status.status === 'watched')
-      ).length || 0;
+      const watchedEpisodes = episodeData?.filter(ep => watchedEpisodeIds.has(ep.id)).length || 0;
 
       // Group by shows
       const showsMap = new Map();
@@ -72,7 +122,7 @@ export const Dashboard: React.FC = () => {
         }
         const show = showsMap.get(showId);
         show.totalEpisodes++;
-        if (episode.user_episode_status?.some(status => status.status === 'watched')) {
+        if (watchedEpisodeIds.has(episode.id)) {
           show.watchedEpisodes++;
         }
       });
@@ -89,7 +139,8 @@ export const Dashboard: React.FC = () => {
         watchedEpisodes,
         watchingShows,
         notStartedShows,
-        completedShows
+        completedShows,
+        totalUniverses: universesData?.length || 0
       });
 
       // Set show progress with status
@@ -134,7 +185,7 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Shows</CardTitle>
+            <CardTitle className="text-sm font-medium">Tracked Shows</CardTitle>
             <Tv className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -164,12 +215,11 @@ export const Dashboard: React.FC = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Progress</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Universes</CardTitle>
+            <Globe className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{completionPercentage}%</div>
-            <p className="text-xs text-muted-foreground">Complete</p>
+            <div className="text-2xl font-bold">{stats?.totalUniverses || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -185,7 +235,7 @@ export const Dashboard: React.FC = () => {
         <CardContent>
           <Progress value={completionPercentage} className="w-full" />
           <p className="text-sm text-muted-foreground mt-2">
-            {((stats?.totalEpisodes || 0) - (stats?.watchedEpisodes || 0))} episodes left
+            {completionPercentage}% complete - {((stats?.totalEpisodes || 0) - (stats?.watchedEpisodes || 0))} episodes left
           </p>
         </CardContent>
       </Card>
@@ -266,7 +316,7 @@ export const Dashboard: React.FC = () => {
             ))}
             {showProgress.length === 0 && (
               <p className="text-center text-gray-500 py-8">
-                No shows found. Start tracking some shows to see your progress!
+                No tracked shows found. Start tracking some shows to see your progress!
               </p>
             )}
           </div>
