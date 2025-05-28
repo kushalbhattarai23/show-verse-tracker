@@ -56,7 +56,60 @@ export const MyShows: React.FC = () => {
       if (trackingError) throw trackingError;
       
       const trackedShows = (trackingData || []).map(item => item.shows).filter(Boolean);
-      setMyShows(trackedShows);
+
+      // Get shows where user has watched episodes (auto-track these)
+      const { data: episodeData, error: episodeError } = await supabase
+        .from('user_episode_status')
+        .select(`
+          episode_id,
+          episodes!inner (
+            show_id,
+            shows!inner (
+              id,
+              title,
+              description,
+              poster_url,
+              created_at
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'watched');
+
+      if (episodeError) throw episodeError;
+
+      // Extract unique shows from watched episodes
+      const watchedShows = new Map();
+      (episodeData || []).forEach(item => {
+        const show = item.episodes.shows;
+        if (show && !watchedShows.has(show.id)) {
+          watchedShows.set(show.id, show);
+        }
+      });
+
+      // Combine tracked shows and shows with watched episodes
+      const allMyShows = new Map();
+      trackedShows.forEach(show => allMyShows.set(show.id, show));
+      watchedShows.forEach((show, id) => allMyShows.set(id, show));
+
+      setMyShows(Array.from(allMyShows.values()));
+
+      // Auto-track shows with watched episodes that aren't already tracked
+      const trackedShowIds = new Set(trackedShows.map(show => show.id));
+      const showsToAutoTrack = Array.from(watchedShows.values()).filter(
+        show => !trackedShowIds.has(show.id)
+      );
+
+      if (showsToAutoTrack.length > 0) {
+        const trackingInserts = showsToAutoTrack.map(show => ({
+          user_id: user.id,
+          show_id: show.id
+        }));
+
+        await supabase
+          .from('user_show_tracking')
+          .insert(trackingInserts);
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -87,10 +140,25 @@ export const MyShows: React.FC = () => {
 
       if (trackingError) throw trackingError;
 
+      // Get shows where user has watched episodes
+      const { data: episodeData, error: episodeError } = await supabase
+        .from('user_episode_status')
+        .select(`
+          episodes!inner (show_id)
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'watched');
+
+      if (episodeError) throw episodeError;
+
       const trackedShowIds = new Set((trackingData || []).map(item => item.show_id));
+      const watchedShowIds = new Set((episodeData || []).map(item => item.episodes.show_id));
       
-      // Filter out shows user is already tracking
-      const available = (allShows || []).filter(show => !trackedShowIds.has(show.id));
+      // Combine tracked and watched show IDs
+      const myShowIds = new Set([...trackedShowIds, ...watchedShowIds]);
+      
+      // Filter out shows user is already tracking or has watched episodes of
+      const available = (allShows || []).filter(show => !myShowIds.has(show.id));
       setAvailableShows(available);
     } catch (error: any) {
       toast({
