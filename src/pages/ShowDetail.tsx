@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, CheckCircle, Eye } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, CheckCircle, Search } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -37,6 +38,10 @@ export const ShowDetail: React.FC = () => {
   const [watchedEpisodes, setWatchedEpisodes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     if (showId) {
@@ -171,6 +176,43 @@ export const ShowDetail: React.FC = () => {
     }
   };
 
+  // Filter and sort episodes
+  const filteredAndSortedEpisodes = episodes
+    .filter(episode => {
+      const matchesSearch = episode.title.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const isWatched = watchedEpisodes.includes(episode.id);
+      const matchesStatus = statusFilter === 'all' ||
+                           (statusFilter === 'watched' && isWatched) ||
+                           (statusFilter === 'unwatched' && !isWatched);
+      
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      // First, sort by watch status (unwatched first)
+      const aWatched = watchedEpisodes.includes(a.id);
+      const bWatched = watchedEpisodes.includes(b.id);
+      
+      if (aWatched !== bWatched) {
+        return aWatched ? 1 : -1;
+      }
+      
+      // Then sort by air date
+      const dateA = a.air_date ? new Date(a.air_date).getTime() : 0;
+      const dateB = b.air_date ? new Date(b.air_date).getTime() : 0;
+      
+      if (dateA !== dateB) {
+        return dateA - dateB;
+      }
+      
+      // Finally sort by season and episode number
+      if (a.season_number !== b.season_number) {
+        return a.season_number - b.season_number;
+      }
+      
+      return a.episode_number - b.episode_number;
+    });
+
   if (loading) {
     return <div className="text-center py-8">Loading show...</div>;
   }
@@ -247,6 +289,29 @@ export const ShowDetail: React.FC = () => {
           <CardDescription>Track your progress through the series</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search episodes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="watched">Watched</SelectItem>
+                <SelectItem value="unwatched">Unwatched</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -258,7 +323,7 @@ export const ShowDetail: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {episodes.map((episode) => {
+              {filteredAndSortedEpisodes.map((episode) => {
                 const isWatched = watchedEpisodes.includes(episode.id);
                 return (
                   <TableRow key={episode.id}>
@@ -307,9 +372,9 @@ export const ShowDetail: React.FC = () => {
               })}
             </TableBody>
           </Table>
-          {episodes.length === 0 && (
+          {filteredAndSortedEpisodes.length === 0 && (
             <p className="text-center text-gray-500 py-8">
-              No episodes found for this show.
+              No episodes found matching your filters.
             </p>
           )}
         </CardContent>
