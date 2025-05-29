@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, CheckCircle, Search } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -40,6 +42,11 @@ export const UniverseDashboard: React.FC = () => {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showFilter, setShowFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     if (universeId) {
@@ -174,6 +181,45 @@ export const UniverseDashboard: React.FC = () => {
     }
   };
 
+  // Filter and sort episodes
+  const filteredAndSortedEpisodes = episodes
+    .filter(episode => {
+      const matchesSearch = episode.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           episode.show_title.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesShow = showFilter === 'all' || episode.show_title === showFilter;
+      
+      const matchesStatus = statusFilter === 'all' ||
+                           (statusFilter === 'watched' && episode.is_watched) ||
+                           (statusFilter === 'unwatched' && !episode.is_watched);
+      
+      return matchesSearch && matchesShow && matchesStatus;
+    })
+    .sort((a, b) => {
+      // First, sort by watch status (unwatched first)
+      if (a.is_watched !== b.is_watched) {
+        return a.is_watched ? 1 : -1;
+      }
+      
+      // Then sort by air date
+      const dateA = a.air_date ? new Date(a.air_date).getTime() : 0;
+      const dateB = b.air_date ? new Date(b.air_date).getTime() : 0;
+      
+      if (dateA !== dateB) {
+        return dateA - dateB;
+      }
+      
+      // Finally sort by season and episode number
+      if (a.season_number !== b.season_number) {
+        return a.season_number - b.season_number;
+      }
+      
+      return a.episode_number - b.episode_number;
+    });
+
+  // Get unique shows for filter
+  const uniqueShows = Array.from(new Set(episodes.map(ep => ep.show_title))).sort();
+
   if (loading) {
     return <div className="text-center py-8">Loading universe dashboard...</div>;
   }
@@ -248,6 +294,40 @@ export const UniverseDashboard: React.FC = () => {
           <CardDescription>Track your progress through all shows in this universe</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search episodes or shows..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={showFilter} onValueChange={setShowFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Filter by show" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Shows</SelectItem>
+                {uniqueShows.map(show => (
+                  <SelectItem key={show} value={show}>{show}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="watched">Watched</SelectItem>
+                <SelectItem value="unwatched">Unwatched</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -261,7 +341,7 @@ export const UniverseDashboard: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {episodes.map((episode) => {
+              {filteredAndSortedEpisodes.map((episode) => {
                 const isWatched = episode.is_watched;
                 return (
                   <TableRow key={episode.id}>
@@ -310,9 +390,9 @@ export const UniverseDashboard: React.FC = () => {
               })}
             </TableBody>
           </Table>
-          {episodes.length === 0 && (
+          {filteredAndSortedEpisodes.length === 0 && (
             <p className="text-center text-gray-500 py-8">
-              No episodes found in this universe.
+              No episodes found matching your filters.
             </p>
           )}
         </CardContent>
