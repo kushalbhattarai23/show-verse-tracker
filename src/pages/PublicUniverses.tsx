@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { UniverseCard } from '@/components/universes/UniverseCard';
@@ -11,6 +10,7 @@ interface Universe {
   name: string;
   description: string | null;
   created_at: string;
+  creator_id: string;
 }
 
 export const PublicUniverses: React.FC = () => {
@@ -26,31 +26,19 @@ export const PublicUniverses: React.FC = () => {
 
   const fetchPublicUniverses = async () => {
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('universes')
         .select('*')
         .eq('is_public', true)
         .order('created_at', { ascending: false });
 
-      // If user is logged in, only show their public universes
-      if (user) {
-        query = query.eq('creator_id', user.id);
-      } else {
-        // If no user is logged in, don't show any universes
-        setUniverses([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await query;
-
       if (error) throw error;
       setUniverses(data || []);
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to load public universes",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to load public universes',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -64,7 +52,7 @@ export const PublicUniverses: React.FC = () => {
   if (!user) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-600">Please sign in to view your public universes.</p>
+        <p className="text-gray-600">Please sign in to view public universes.</p>
       </div>
     );
   }
@@ -73,24 +61,44 @@ export const PublicUniverses: React.FC = () => {
     return <div className="text-center py-8">Loading universes...</div>;
   }
 
+  const myUniverses = universes.filter((u) => u.creator_id === user.id);
+  const otherUniverses = universes.filter((u) => u.creator_id !== user.id);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <div>
         <h1 className="text-3xl font-bold">My Public Universes</h1>
         <p className="text-gray-600">Your public TV show universes</p>
+
+        {myUniverses.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+            {myUniverses.map((universe) => (
+              <UniverseCard key={universe.id} universe={universe} onSelect={handleUniverseSelect} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            You haven't created any public universes yet.
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {universes.map((universe) => (
-          <UniverseCard key={universe.id} universe={universe} onSelect={handleUniverseSelect} />
-        ))}
-      </div>
+      <div>
+        <h2 className="text-2xl font-bold">Other Public Universes</h2>
+        <p className="text-gray-600">Explore universes created by other users</p>
 
-      {universes.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          You haven't created any public universes yet.
-        </div>
-      )}
+        {otherUniverses.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+            {otherUniverses.map((universe) => (
+              <UniverseCard key={universe.id} universe={universe} onSelect={handleUniverseSelect} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            No public universes from other users found.
+          </div>
+        )}
+      </div>
     </div>
   );
 };
