@@ -45,7 +45,7 @@ export const PublicUniverses: React.FC = () => {
     }
   };
 
-  const handleUniverseSelect = (universeId: string) => {
+  const handlePublicUniverseSelect = (universeId: string) => {
     navigate(`/universe/${universeId}`);
   };
 
@@ -73,7 +73,7 @@ export const PublicUniverses: React.FC = () => {
         {myUniverses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
             {myUniverses.map((universe) => (
-              <UniverseCard key={universe.id} universe={universe} onSelect={handleUniverseSelect} />
+              <UniverseCard key={universe.id} universe={universe} onSelect={handlePublicUniverseSelect} />
             ))}
           </div>
         ) : (
@@ -90,7 +90,7 @@ export const PublicUniverses: React.FC = () => {
         {otherUniverses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
             {otherUniverses.map((universe) => (
-              <UniverseCard key={universe.id} universe={universe} onSelect={handleUniverseSelect} />
+              <UniverseCard key={universe.id} universe={universe} onSelect={handlePublicUniverseSelect} />
             ))}
           </div>
         ) : (
