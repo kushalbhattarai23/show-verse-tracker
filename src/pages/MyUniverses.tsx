@@ -57,8 +57,8 @@ export const MyUniverses: React.FC = () => {
     }
   };
 
-  const handleUniverseSelect = (universeId: string) => {
-    navigate(`/universe/${universeId}`);
+  const handleUniverseSelect = (universe.id: string) => {
+    navigate(`/universe/${universe.id}`);
   };
 
   const handleFormSuccess = () => {
