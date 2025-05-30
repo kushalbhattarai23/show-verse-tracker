@@ -57,7 +57,7 @@ export const MyUniverses: React.FC = () => {
     }
   };
 
-  const handleUniverseSelect = (universeId: string) => {
+  const handleMyUniverseSelect = (universeId: string) => {
     navigate(`/universe/${universeId}`);
   };
 
@@ -171,7 +171,7 @@ export const MyUniverses: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {universes.map((universe) => (
           <div key={universe.id} className="relative">
-            <UniverseCard key={universe.id} universe={universe} onSelect={handleUniverseSelect} />
+            <UniverseCard key={universe.id} universe={universe} onSelect={handleMyUniverseSelect} />
             <div className="absolute top-2 right-2 flex gap-1">
               <Button
                 onClick={(e) => handleTogglePrivacy(universe.id, universe.is_public, e)}
