@@ -25,7 +25,7 @@ function App() {
           <Navigation />
           <main className="container mx-auto px-4 py-8">
             <Routes>
-              <Route path="/" element={<UniversePage />} />
+              <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={<AdminPortal />} />
               <Route path="/shows/public" element={<PublicShows />} />
