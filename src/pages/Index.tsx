@@ -7,7 +7,7 @@ const Index: React.FC = () => {
 
   useEffect(() => {
     // Redirect to public universes as the main page
-    navigate('/dashboard');
+    navigate('/shows/public');
   }, [navigate]);
 
   return (
