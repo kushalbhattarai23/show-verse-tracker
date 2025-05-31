@@ -38,7 +38,7 @@ interface Episode {
   is_watched?: boolean
 }
 
-export default function UniversePage() {
+export default function UniverseTestPage() {
   const router = useRouter()
   const { id } = router.query
   const { toast } = useToast()
