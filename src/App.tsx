@@ -32,6 +32,7 @@ function App() {
               <Route path="/shows/my" element={<MyShows />} />
               <Route path="/universes/public" element={<PublicUniverses />} />
               <Route path="/universes/my" element={<MyUniverses />} />
+              <Route path="/universe/:id" element={<UniversePage />} />
               <Route path="/universe/:universeId/dashboard" element={<UniverseDashboard />} />
               <Route path="/show/:showId" element={<ShowDetail />} />
               <Route path="/sign-in" element={<SignIn />} />

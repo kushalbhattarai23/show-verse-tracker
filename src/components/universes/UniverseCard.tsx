@@ -1,5 +1,5 @@
+
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from 'lucide-react';
@@ -13,19 +13,14 @@ interface Universe {
 
 interface UniverseCardProps {
   universe: Universe;
+  onSelect: (universeId: string) => void;
 }
 
-export const UniverseCard: React.FC<UniverseCardProps> = ({ universe }) => {
-  const navigate = useNavigate();
-
-  const handleCardClick = () => {
-    navigate(`/universe/${universe.id}`);
-  };
-
+export const UniverseCard: React.FC<UniverseCardProps> = ({ universe, onSelect }) => {
   return (
     <Card 
       className="cursor-pointer hover:shadow-lg transition-shadow"
-      onClick={handleCardClick}
+      onClick={() => onSelect(universe.id)}
     >
       <CardHeader>
         <CardTitle className="flex items-center justify-between">

@@ -63,14 +63,13 @@ export const UniversePage: React.FC = () => {
 
   useEffect(() => {
     fetchUniverses();
-  }, [user]);
+  }, []);
 
   const fetchUniverses = async () => {
     try {
       const { data, error } = await supabase
         .from('universes')
         .select('*')
-        .eq('is_public', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
