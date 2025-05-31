@@ -11,7 +11,7 @@ import { MyShows } from './pages/MyShows';
 import { PublicUniverses } from './pages/PublicUniverses';
 import { MyUniverses } from './pages/MyUniverses';
 import { UniversePage } from './pages/UniversePage';
-import { UniversePage } from './pages/UniverseTestPage';
+import { UniverseTestPage } from './pages/UniverseTestPage';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { ShowDetail } from './pages/ShowDetail';
