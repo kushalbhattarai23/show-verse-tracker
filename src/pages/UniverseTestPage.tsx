@@ -104,7 +104,7 @@ export default function UniverseTestPage() {
   if (!universe) return <p className="p-4">Universe not found</p>
 
   return (
-    <DIV> Universe Test Page</DIV>
+    <> <div>Universe Test Page</div>
     <div className="p-4 space-y-6">
       <div className="flex items-center space-x-2">
         <Link href="/universes">
